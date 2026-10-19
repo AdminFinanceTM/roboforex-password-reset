@@ -1,0 +1,148 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>RoboForex Performance V2 - Password Reset</title>
+  <style>
+    body {
+      background: #0e1117;
+      color: #fafafa;
+      font-family: Arial, sans-serif;
+      max-width: 440px;
+      margin: 80px auto;
+      padding: 20px;
+    }
+    input, button {
+      box-sizing: border-box;
+      width: 100%;
+      padding: 14px;
+      margin: 10px 0;
+      border-radius: 8px;
+      font-size: 16px;
+    }
+    input {
+      background: #262b36;
+      color: white;
+      border: 1px solid #555;
+    }
+    button {
+      background: #ff4b4b;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+    #message { margin-top: 15px; }
+    a { color: #ff8080; }
+  </style>
+</head>
+<body>
+  <h1>📈 RoboForex Performance V2</h1>
+  <h2>Set New Password</h2>
+
+  <form id="resetForm" hidden>
+    <input id="password" type="password"
+           placeholder="New password"
+           minlength="6" required>
+    <input id="confirm" type="password"
+           placeholder="Confirm new password"
+           minlength="6" required>
+    <button type="submit">Save New Password</button>
+  </form>
+
+  <p id="message">Verifying recovery link...</p>
+  <p><a id="backLink">Return to Sign In</a></p>
+
+  <script type="module">
+    import { createClient } from
+      "https://esm.sh/@supabase/supabase-js@2";
+
+    // REPLACE THESE THREE VALUES
+    const SUPABASE_URL = "YOUR_SUPABASE_PROJECT_URL";
+    const SUPABASE_KEY = "YOUR_PUBLIC_ANON_KEY";
+    const APP_URL = "YOUR_STREAMLIT_APP_URL";
+
+    document.getElementById("backLink").href = APP_URL;
+
+    const message = document.getElementById("message");
+    const form = document.getElementById("resetForm");
+
+    const supabase = createClient(
+      SUPABASE_URL,
+      SUPABASE_KEY,
+      {
+        auth: {
+          detectSessionInUrl: true,
+          persistSession: false,
+          flowType: "implicit"
+        }
+      }
+    );
+
+    const fragment = new URLSearchParams(
+      window.location.hash.substring(1)
+    );
+
+    const isRecovery =
+      fragment.get("type") === "recovery";
+
+    async function initialize() {
+      if (!isRecovery) {
+        message.textContent =
+          "Open this page using a fresh password recovery email.";
+        return;
+      }
+
+      const { data, error } =
+        await supabase.auth.getSession();
+
+      if (error || !data.session) {
+        message.textContent =
+          "Recovery link invalid or expired. Request a new link.";
+        return;
+      }
+
+      form.hidden = false;
+      message.textContent = "Enter your new password.";
+    }
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+
+      const password =
+        document.getElementById("password").value;
+
+      const confirm =
+        document.getElementById("confirm").value;
+
+      if (password !== confirm) {
+        message.textContent = "Passwords do not match.";
+        return;
+      }
+
+      const button = form.querySelector("button");
+      button.disabled = true;
+
+      const { error } = await supabase.auth.updateUser({
+        password: password
+      });
+
+      if (error) {
+        message.textContent =
+          "Password update failed: " + error.message;
+        button.disabled = false;
+        return;
+      }
+
+      form.hidden = true;
+      message.textContent =
+        "Password updated successfully. Return to Sign In.";
+
+      await supabase.auth.signOut();
+    });
+
+    initialize();
+  </script>
+</body>
+</html>
